@@ -879,7 +879,7 @@ class BDFWriter:
             self.resolution_x,
             self.resolution_y,
             self.spacing,
-            self.character_width,
+            str(self.character_width),
             self.charset_registry,
             self.charset_encoding
         ]
@@ -889,7 +889,7 @@ class BDFWriter:
         with open(self.output_filename, "w") as f:
             f.write("{} {}\n".format(COMMAND_DESCRIPTION, self.create_font_name()))
             f.write("{} {} {} {}\n".format(
-                COMMAND_SIZE, self.point_size // 10, self.resolution_x, self.resolution_y
+                COMMAND_SIZE, self.point_size, self.resolution_x, self.resolution_y
             ))
             f.write("{} {} {} {} {}\n".format(
                 COMMAND_FONTBOUNDINGBOX,
@@ -899,16 +899,13 @@ class BDFWriter:
 
     def generate_character(self, glyph_filename):
         glyph_name = glyph_filename.split(".")[0]
-        glyph_name.replace("_", " ")
-        glyph_name.upper()
+        glyph_name = glyph_name.replace("_", " ").upper()
         glyph_hex = []
-        with open(glyph_filename, "r") as f:
+        with open(os.path.join(self.glyph_dir, glyph_filename), "r") as f:
             for line in f:
-                line = line.strip()
-                line.replace(".", "0")
-                line.replace("#", "1")
-                line_hex = hex(int(line, 2))
-                line_hex = f"{line_hex:0>{self.hex_digits_per_line}}"
+                line = line.strip().replace(".", "0").replace("#", "1")
+                line_value = int(line, 2)
+                line_hex = f"{line_value:0>{self.hex_digits_per_line}x}"
                 glyph_hex.append(line_hex)
         with open(self.output_filename, "w") as f:
             f.write(f"{COMMAND_STARTCHAR} {glyph_name}\n")
@@ -922,7 +919,7 @@ class BDFWriter:
             f.write(f"{COMMAND_ENDCHAR}\n")
 
     def generate_characters(self):
-        for glyph_filename in os.path.join(glyph_dir, os.listdir(self.glyph_dir)):
+        for glyph_filename in os.listdir(self.glyph_dir):
             self.generate_character(glyph_filename)
 
     def generate(self):
