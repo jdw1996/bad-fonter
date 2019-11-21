@@ -811,7 +811,7 @@ FALLBACK_WEIGHT_NAME = "medium"
 FALLBACK_SLANT = "r"
 FALLBACK_SETWIDTH_NAME = "normal"
 FALLBACK_ADD_STYLE_NAME = ""
-FALLBACK_POINT_SIZE = "16"
+FALLBACK_POINT_SIZE = "160"
 FALLBACK_RESOLUTION_X = "75"
 FALLBACK_RESOLUTION_Y = "75"
 FALLBACK_SPACING = "c"
@@ -841,7 +841,9 @@ class BDFWriter:
 
     @property
     def hex_digits_per_line(self):
-        return (self.character_width + 3) // 4
+        n = (self.character_width + 3) // 4
+        n += 1 if n % 2 == 1 else 0
+        return n
 
     def read_config(self, config_filename):
         parser = configparser.ConfigParser()
@@ -874,7 +876,7 @@ class BDFWriter:
             self.slant,
             self.setwidth_name,
             self.add_style_name,
-            str(int(self.point_size) * 10),
+            str(int(self.point_size) // 10),
             self.point_size,
             self.resolution_x,
             self.resolution_y,
@@ -886,16 +888,15 @@ class BDFWriter:
         return "-" + "-".join(name_parts)
 
     def generate_preamble(self):
-        with open(self.output_filename, "w") as f:
-            f.write("{} {}\n".format(COMMAND_DESCRIPTION, self.create_font_name()))
-            f.write("{} {} {} {}\n".format(
-                COMMAND_SIZE, self.point_size, self.resolution_x, self.resolution_y
-            ))
-            f.write("{} {} {} {} {}\n".format(
-                COMMAND_FONTBOUNDINGBOX,
-                self.character_width, self.character_height, 0, self.baseline_offset
-            ))
-            f.write("{} {}\n".format(COMMAND_NUM_CHARS, len(os.listdir(self.glyph_dir))))
+        self.output_file.write("{} {}\n".format(COMMAND_DESCRIPTION, self.create_font_name()))
+        self.output_file.write("{} {} {} {}\n".format(
+            COMMAND_SIZE, int(self.point_size) // 10, self.resolution_x, self.resolution_y
+        ))
+        self.output_file.write("{} {} {} {} {}\n".format(
+            COMMAND_FONTBOUNDINGBOX,
+            self.character_width, self.character_height, 0, self.baseline_offset
+        ))
+        self.output_file.write("{} {}\n".format(COMMAND_NUM_CHARS, len(os.listdir(self.glyph_dir))))
 
     def generate_character(self, glyph_filename):
         glyph_name = glyph_filename.split(".")[0]
@@ -907,16 +908,15 @@ class BDFWriter:
                 line_value = int(line, 2)
                 line_hex = f"{line_value:0>{self.hex_digits_per_line}x}"
                 glyph_hex.append(line_hex)
-        with open(self.output_filename, "w") as f:
-            f.write(f"{COMMAND_STARTCHAR} {glyph_name}\n")
-            f.write(f"{COMMAND_ENCODING} {ENCODING_DICT[glyph_name]}\n")
-            f.write(f"{COMMAND_SWIDTH}\n")
-            f.write(f"{COMMAND_DWIDTH} {self.character_width}\n")
-            f.write(f"{COMMAND_BBX} {self.character_width} {self.character_height} 0 {self.baseline_offset}\n")
-            f.write(f"{COMMAND_BITMAP}\n")
-            for line in glyph_hex:
-                f.write(f"{line}\n")
-            f.write(f"{COMMAND_ENDCHAR}\n")
+        self.output_file.write(f"{COMMAND_STARTCHAR} {glyph_name}\n")
+        self.output_file.write(f"{COMMAND_ENCODING} {ENCODING_DICT[glyph_name]}\n")
+        self.output_file.write(f"{COMMAND_SWIDTH}\n")
+        self.output_file.write(f"{COMMAND_DWIDTH} {self.character_width} 0\n")
+        self.output_file.write(f"{COMMAND_BBX} {self.character_width} {self.character_height} 0 {self.baseline_offset}\n")
+        self.output_file.write(f"{COMMAND_BITMAP}\n")
+        for line in glyph_hex:
+            self.output_file.write(f"{line}\n")
+        self.output_file.write(f"{COMMAND_ENDCHAR}\n")
 
     def generate_characters(self):
         for glyph_filename in os.listdir(self.glyph_dir):
